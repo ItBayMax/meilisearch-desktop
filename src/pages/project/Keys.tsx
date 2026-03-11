@@ -57,7 +57,7 @@ export default function Keys() {
   const { projectId } = useOutletContext<OutletCtx>();
   const { t } = useTranslation();
 
-  const { data: keys = [], isLoading, isFetching, refetch, error } = useKeys(projectId);
+  const { data: keys = [], isLoading, isFetching, refetch } = useKeys(projectId);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editKey, setEditKey] = useState<ApiKey | null>(null);

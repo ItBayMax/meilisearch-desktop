@@ -1,5 +1,6 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Database,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProjects } from "@/hooks/useProjects";
+import { getVersion } from "@tauri-apps/api/app";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -25,6 +27,11 @@ export function Sidebar({ collapsed }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { data: projects, isLoading } = useProjects();
+  const [version, setVersion] = useState("0.1.0");
+
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => {});
+  }, []);
 
   const recentProjects = (projects || []).slice(0, 5);
 
@@ -35,9 +42,9 @@ export function Sidebar({ collapsed }: SidebarProps) {
         collapsed ? "w-16" : "w-56"
       )}
     >
-      {/* Logo */}
-      <div className="h-14 flex items-center px-4 border-b border-border">
-        <div className="flex items-center gap-2">
+      {/* Logo - draggable for macOS */}
+      <div className="h-14 flex items-center px-4 border-b border-border" data-tauri-drag-region>
+        <div className="flex items-center gap-2 pl-12" data-tauri-drag-region>
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
             MS
           </div>
@@ -121,7 +128,7 @@ export function Sidebar({ collapsed }: SidebarProps) {
       <div className="p-4 border-t border-border">
         {!collapsed && (
           <div className="text-xs text-muted-foreground text-center">
-            v0.1.0
+            v{version}
           </div>
         )}
       </div>

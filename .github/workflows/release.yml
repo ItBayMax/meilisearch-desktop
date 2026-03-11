@@ -82,6 +82,34 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Update version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Updating version to $VERSION"
+          
+          # Update package.json
+          npm version $VERSION --no-git-tag-version --allow-same-version
+          
+          # Update tauri.conf.json
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+          else
+            sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json 2>/dev/null || \
+            sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+          fi
+          
+          # Update Cargo.toml (first version line only)
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            sed -i "0,/^version = /s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          else
+            sed -i '' "1,/^version = /s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml 2>/dev/null || \
+            sed -i "0,/^version = /s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          fi
+          
+          echo "Version updated to $VERSION"
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
