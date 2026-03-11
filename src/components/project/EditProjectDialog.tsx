@@ -102,44 +102,13 @@ export function EditProjectDialog({ open, onOpenChange, project }: Props) {
 
           <div className="space-y-2">
             <Label htmlFor="edit-url">{t("project.projectUrl")} *</Label>
-            <div className="flex gap-2">
-              <Input
-                id="edit-url"
-                value={form.url}
-                className="flex-1"
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, url: e.target.value }))
-                }
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="shrink-0"
-                onClick={handleTest}
-                disabled={testStatus === "testing" || !form.url.trim()}
-              >
-                {testStatus === "testing" ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Zap className="w-4 h-4" />
-                )}
-                <span className="ml-1">{t("project.testConnection")}</span>
-              </Button>
-            </div>
-            {testStatus === "success" && (
-              <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {t("project.connectionSuccess")}
-                {testVersion && <span className="ml-1">v{testVersion}</span>}
-              </div>
-            )}
-            {testStatus === "error" && (
-              <div className="flex items-center gap-1.5 text-xs text-destructive">
-                <XCircle className="w-3.5 h-3.5" />
-                {t("project.connectionFailed")}
-              </div>
-            )}
+            <Input
+              id="edit-url"
+              value={form.url}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, url: e.target.value }))
+              }
+            />
           </div>
 
           <div className="space-y-2">
@@ -166,7 +135,35 @@ export function EditProjectDialog({ open, onOpenChange, project }: Props) {
             />
           </div>
         </div>
-        <DialogFooter>
+        <div className="flex flex-row items-center gap-2 pt-4">
+          <Button
+            type="button"
+            variant={testStatus === "success" ? "default" : "outline"}
+            onClick={handleTest}
+            disabled={testStatus === "testing" || !form.url.trim()}
+            className={testStatus === "success" ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+          >
+            {testStatus === "testing" ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4" />
+            )}
+            <span className="ml-1">{t("project.testConnection")}</span>
+          </Button>
+          {testStatus === "success" && (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 mr-auto">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {t("project.connectionSuccess")}
+              {testVersion && <span className="ml-1">v{testVersion}</span>}
+            </div>
+          )}
+          {testStatus === "error" && (
+            <div className="flex items-center gap-1.5 text-xs text-destructive mr-auto">
+              <XCircle className="w-3.5 h-3.5" />
+              {t("project.connectionFailed")}
+            </div>
+          )}
+          {testStatus === "idle" && <div className="mr-auto" />}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t("common.cancel")}
           </Button>
@@ -179,7 +176,7 @@ export function EditProjectDialog({ open, onOpenChange, project }: Props) {
             )}
             {t("common.save")}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

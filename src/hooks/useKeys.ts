@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { keyApi } from "@/services/api";
-import type { CreateKeyData, UpdateKeyData } from "@/types";
+import type { CreateKeyData, UpdateKeyData, ApiKey } from "@/types";
 
 export const keyKeys = {
   all: (projectId: number) => ["keys", projectId] as const,
@@ -10,9 +10,24 @@ export const keyKeys = {
 };
 
 export function useKeys(projectId: number | undefined) {
-  return useQuery({
+  return useQuery<ApiKey[], Error>({
     queryKey: keyKeys.list(projectId!),
-    queryFn: () => keyApi.getAll(projectId!),
+    queryFn: async () => {
+      const response = await keyApi.getAll(projectId!);
+      // Handle error response - if response is not an object with results, throw error
+      if (typeof response === 'string') {
+        throw new Error(response);
+      }
+      if (response && typeof response === 'object' && 'results' in response) {
+        return (response as { results: ApiKey[] }).results;
+      }
+      // If response is already an array, return it
+      if (Array.isArray(response)) {
+        return response as ApiKey[];
+      }
+      // Default to empty array for unexpected formats
+      return [];
+    },
     enabled: projectId !== undefined,
   });
 }
