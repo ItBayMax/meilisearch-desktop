@@ -17,26 +17,68 @@ fn get_client(state: &AppState, project_id: i64) -> AppResult<MeiliClient> {
 pub async fn test_connection(url: &str, api_key: Option<&str>) -> AppResult<Value> {
     let client = MeiliClient::new(url, api_key);
 
-    let health: Value = client
+    // First check if server is reachable via health endpoint
+    let health_response = client
         .get("/health")
         .send()
-        .await?
-        .json()
         .await?;
+    
+    if !health_response.status().is_success() {
+        return Err(AppError::Network(format!(
+            "Server unreachable, status: {}",
+            health_response.status()
+        )));
+    }
+    
+    let health: Value = health_response.json().await?;
 
-    let version: Value = client
+    // Verify API key by calling an authenticated endpoint (/stats)
+    // /stats requires valid API key and returns useful info
+    let stats_response = client
+        .get("/stats")
+        .send()
+        .await?;
+    
+    if !stats_response.status().is_success() {
+        let status = stats_response.status();
+        let error_body: Value = stats_response.json().await.unwrap_or_default();
+        let error_msg = error_body.get("message")
+            .and_then(|m| m.as_str())
+            .unwrap_or("Invalid API key or insufficient permissions");
+        return Err(AppError::Meilisearch(format!(
+            "API key validation failed ({}): {}",
+            status, error_msg
+        )));
+    }
+
+    // Get version info
+    let version_response = client
         .get("/version")
         .send()
-        .await?
-        .json()
         .await?;
-
-    Ok(serde_json::json!({
-        "success": true,
-        "status": health.get("status").and_then(|s| s.as_str()).unwrap_or("unknown"),
-        "version": version.get("pkgVersion").and_then(|s| s.as_str()).unwrap_or("unknown"),
-    }))
+    
+    if !version_response.status().is_success() {
+        return Err(AppError::Meilisearch("Failed to get version info".to_string()));
+    }
+    
+    let version: Value = version_response.json().await?;
+    let pkg_version = version.get("pkgVersion").and_then(|s| s.as_str());
+    
+    // Validate version is not empty/unknown
+    match pkg_version {
+        Some(v) if !v.is_empty() && v != "unknown" => {
+            Ok(serde_json::json!({
+                "success": true,
+                "status": health.get("status").and_then(|s| s.as_str()).unwrap_or("unknown"),
+                "version": v,
+            }))
+        }
+        _ => {
+            Err(AppError::Meilisearch("Invalid version returned from server".to_string()))
+        }
+    }
 }
+
 
 pub async fn get_stats(state: &AppState, project_id: i64) -> AppResult<Value> {
     let client = get_client(state, project_id)?;

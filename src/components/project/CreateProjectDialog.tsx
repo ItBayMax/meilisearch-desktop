@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,20 +160,20 @@ export function CreateProjectDialog({ open, onOpenChange }: Props) {
             )}
             <span className="ml-1">{t("project.testConnection")}</span>
           </Button>
-          {testStatus === "success" && (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 mr-auto">
+          {testStatus === "success" ? (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 flex-1">
               <CheckCircle2 className="w-3.5 h-3.5" />
               {t("project.connectionSuccess")}
               {testVersion && <span className="ml-1">v{testVersion}</span>}
             </div>
-          )}
-          {testStatus === "error" && (
-            <div className="flex items-center gap-1.5 text-xs text-destructive mr-auto">
+          ) : testStatus === "error" ? (
+            <div className="flex items-center gap-1.5 text-xs text-destructive flex-1">
               <XCircle className="w-3.5 h-3.5" />
               {t("project.connectionFailed")}
             </div>
+          ) : (
+            <div className="flex-1" />
           )}
-          {testStatus === "idle" && <div className="mr-auto" />}
           <Button variant="outline" onClick={() => handleClose(false)}>
             {t("common.cancel")}
           </Button>

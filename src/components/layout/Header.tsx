@@ -21,9 +21,13 @@ export function Header() {
   const ThemeIcon = theme === "dark" ? Moon : theme === "light" ? Sun : Monitor;
 
   return (
-    <header className="h-14 border-b border-border flex items-center justify-between px-6 bg-background/80 backdrop-blur-sm">
-      <div className="flex items-center gap-2">
-        <h1 className="text-lg font-semibold text-foreground">
+    <header 
+      className="h-14 border-b border-border flex items-center justify-between px-6 bg-background/80 backdrop-blur-sm"
+      data-tauri-drag-region
+    >
+      {/* Left padding for macOS traffic lights */}
+      <div className="flex items-center gap-2" data-tauri-drag-region>
+        <h1 className="text-lg font-semibold text-foreground" data-tauri-drag-region>
           {t("app.title")}
         </h1>
       </div>
