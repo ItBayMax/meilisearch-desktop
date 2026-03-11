@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+src-tauri/target/
+target/
+build/
+out/
+coverage/
+.cache/
+.tmp/
+tmp/
+temp/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+.qoder/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+src-tauri/**/*.log
+src-tauri/db.sqlite
+src-tauri/*.db
+src-tauri/.env
+src-tauri/.env.*
+WixTools/
+
+# Lock files - keep package-lock.json, ignore Cargo.lock for libs
+# Cargo.lock is committed for binary crates (Tauri app)
+
+# Build caches and temp files
+*.bak
+*.tmp
+*.local
+.eslintcache
+.vite/
+dist-electron/

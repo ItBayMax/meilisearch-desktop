@@ -1,0 +1,13 @@
+{
+  "identifier": "default",
+  "description": "Default capabilities for meilisearch-desktop",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "dialog:default",
+    "store:default",
+    "process:default",
+    "updater:default"
+  ]
+}
