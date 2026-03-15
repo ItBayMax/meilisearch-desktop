@@ -56,3 +56,9 @@ WixTools/
 .eslintcache
 .vite/
 dist-electron/
+
+# Tauri Signing Keys (keep secret!)
+tauri-signing-key.key
+tauri-signing-key.key.pub
+*.key
+*.key.pub

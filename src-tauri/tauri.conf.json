@@ -71,8 +71,9 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/your-org/meilisearch-desktop/releases/latest/download/latest.json"
-      ]
+        "https://github.com/ItBayMax/meilisearch-desktop/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgxMjE2RjU1QjFGNjA1RjcKUldUM0JmYXhWVzhoZ1hCQjRFOHN2RURTMENDb1RUTzZ0Yzhmck5uTytxQ2F2bEkrck45N1lFSkkK"
     }
   }
 }

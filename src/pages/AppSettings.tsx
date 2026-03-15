@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Moon, Sun, Monitor, Globe, Info, Github, ExternalLink } from "lucide-react";
+import { Moon, Sun, Monitor, Globe, Info, Github, ExternalLink, RefreshCw, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getVersion } from "@tauri-apps/api/app";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { toast } from "sonner";
 
 const GITHUB_URL = "https://github.com/ItBayMax/meilisearch-desktop";
 
@@ -23,10 +26,58 @@ export default function AppSettings() {
   const { t, i18n } = useTranslation();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [version, setVersion] = useState("0.1.0");
+  const [isChecking, setIsChecking] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState<{
+    version: string;
+    notes: string;
+  } | null>(null);
 
   useEffect(() => {
     getVersion().then(setVersion).catch(() => {});
   }, []);
+
+  const handleCheckUpdate = async () => {
+    setIsChecking(true);
+    try {
+      const update = await check();
+      if (update) {
+        setUpdateAvailable({
+          version: update.version,
+          notes: update.body || "",
+        });
+        toast.success(t("settings.updateAvailable", { version: update.version }));
+      } else {
+        toast.info(t("settings.noUpdate"));
+      }
+    } catch (error) {
+      console.error("Check update error:", error);
+      toast.error(t("settings.checkUpdateFailed"));
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const handleDownloadUpdate = async () => {
+    if (!updateAvailable) return;
+    
+    setIsUpdating(true);
+    try {
+      const update = await check();
+      if (update) {
+        toast.info(t("settings.downloading"));
+        await update.downloadAndInstall();
+        toast.success(t("settings.updateReady"));
+        // Relaunch the app to apply the update
+        await relaunch();
+      }
+    } catch (error) {
+      console.error("Download update error:", error);
+      toast.error(t("settings.downloadFailed"));
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const handleLanguageChange = (lang: string) => {
     i18n.changeLanguage(lang);
@@ -112,6 +163,47 @@ export default function AppSettings() {
             <Label>Meilisearch Desktop</Label>
             <Badge variant="secondary">v{version}</Badge>
           </div>
+          <Separator />
+          
+          {/* Update Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                {updateAvailable
+                  ? t("settings.newVersionAvailable", { version: updateAvailable.version })
+                  : t("settings.currentVersion")}
+              </span>
+              {updateAvailable ? (
+                <Button
+                  size="sm"
+                  onClick={handleDownloadUpdate}
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  {isUpdating ? t("settings.installing") : t("settings.downloadAndInstall")}
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCheckUpdate}
+                  disabled={isChecking}
+                >
+                  {isChecking ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                  )}
+                  {isChecking ? t("settings.checking") : t("settings.checkUpdate")}
+                </Button>
+              )}
+            </div>
+          </div>
+          
           <Separator />
           <div className="text-xs text-muted-foreground space-y-1">
             <p>{t("settings.appDescription")}</p>
