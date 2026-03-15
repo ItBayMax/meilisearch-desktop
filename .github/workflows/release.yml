@@ -114,6 +114,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Meilisearch Desktop ${{ github.ref_name }}'
@@ -130,6 +132,7 @@ jobs:
           releaseDraft: ${{ github.event.inputs.draft || 'true' }}
           prerelease: false
           args: ${{ matrix.platform.args }}
+          updaterJsonKeepUniversal: true
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -154,43 +157,62 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: List artifacts
-        run: find artifacts -type f | head -50
+      - name: Wait for release assets
+        run: sleep 30
 
       - name: Generate updater manifest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          REPO="$GITHUB_REPOSITORY"
+          TAG="$GITHUB_REF_NAME"
+          
+          # Get release info and download signature files
+          echo "Fetching release info for ${TAG}..."
+          
+          # Function to get signature from release assets
+          get_signature() {
+            local asset_name="$1"
+            local sig_url="https://github.com/${REPO}/releases/download/${TAG}/${asset_name}.sig"
+            curl -sL "$sig_url" 2>/dev/null || echo ""
+          }
+          
+          # Get signatures (will be empty if not signed)
+          WIN_SIG=$(get_signature "Meilisearch-Desktop_${VERSION}_x64-setup.nsis.zip")
+          MAC_INTEL_SIG=$(get_signature "Meilisearch-Desktop_x64.app.tar.gz")
+          MAC_ARM_SIG=$(get_signature "Meilisearch-Desktop_aarch64.app.tar.gz")
+          LINUX_SIG=$(get_signature "meilisearch-desktop_${VERSION}_amd64.AppImage.tar.gz")
+          
           cat > latest.json <<EOF
           {
             "version": "${VERSION}",
-            "notes": "Meilisearch Desktop ${GITHUB_REF_NAME}",
+            "notes": "Meilisearch Desktop ${TAG}",
             "pub_date": "${DATE}",
             "platforms": {
               "windows-x86_64": {
-                "url": "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/Meilisearch-Desktop_${VERSION}_x64_en-US.msi.zip",
-                "signature": ""
+                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch-Desktop_${VERSION}_x64-setup.nsis.zip",
+                "signature": "${WIN_SIG}"
               },
               "darwin-x86_64": {
-                "url": "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/Meilisearch-Desktop.app.tar.gz",
-                "signature": ""
+                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch-Desktop_x64.app.tar.gz",
+                "signature": "${MAC_INTEL_SIG}"
               },
               "darwin-aarch64": {
-                "url": "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/Meilisearch-Desktop.app.tar.gz",
-                "signature": ""
+                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch-Desktop_aarch64.app.tar.gz",
+                "signature": "${MAC_ARM_SIG}"
               },
               "linux-x86_64": {
-                "url": "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/meilisearch-desktop_${VERSION}_amd64.AppImage.tar.gz",
-                "signature": ""
+                "url": "https://github.com/${REPO}/releases/download/${TAG}/meilisearch-desktop_${VERSION}_amd64.AppImage.tar.gz",
+                "signature": "${LINUX_SIG}"
               }
             }
           }
           EOF
+          
+          echo "Generated latest.json:"
+          cat latest.json
 
       - name: Upload updater manifest to release
         uses: softprops/action-gh-release@v2
