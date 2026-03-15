@@ -34,7 +34,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             args: ''
           - name: macOS Intel
-            os: macos-13-large
+            os: macos-12
             target: x86_64-apple-darwin
             args: '--target x86_64-apple-darwin'
           - name: macOS Apple Silicon
@@ -153,7 +153,7 @@ jobs:
     name: Generate Updater JSON
     needs: build
     runs-on: ubuntu-latest
-    if: always() && contains(needs.build.result, 'success') && startsWith(github.ref_name, 'v')
+    if: always() && contains(needs.build.result, 'success')
     steps:
       - uses: actions/checkout@v4
 
