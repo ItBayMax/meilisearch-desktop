@@ -181,7 +181,17 @@ sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
 
 </details>
 
-### 安装与开发
+### 安装
+
+直接前往 [Releases](https://github.com/ItBayMax/meilisearch-desktop/releases) 页面下载最新的预构建安装包，无需手动编译。
+
+> **macOS 提示**：如果 macOS 提示应用「已损坏」或「无法验证开发者」，请执行以下命令：
+>
+> ```bash
+> sudo xattr -cr /Applications/Meilisearch\ Desktop.app
+> ```
+
+### 开发
 
 ```bash
 # 克隆项目
