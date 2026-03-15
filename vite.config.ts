@@ -13,7 +13,8 @@ export default defineConfig(async () => ({
   },
   clearScreen: false,
   server: {
-    port: 3000,
+    // 端口由 dev-server.js 通过命令行参数传入
+    // 范围: 50001 ~ 59999
     strictPort: true,
     host: host || false,
     hmr: host
