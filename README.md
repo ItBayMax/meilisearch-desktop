@@ -170,7 +170,17 @@ sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
 
 </details>
 
-### Installation & Development
+### Installation
+
+Download the latest pre-built installer directly from the [Releases](https://github.com/ItBayMax/meilisearch-desktop/releases) page — no build required.
+
+> **macOS Note**: If macOS shows a "damaged" or "unverified developer" warning, run the following command:
+>
+> ```bash
+> sudo xattr -cr /Applications/Meilisearch\ Desktop.app
+> ```
+
+### Development
 
 ```bash
 # Clone the repository
