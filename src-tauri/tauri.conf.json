@@ -13,6 +13,11 @@
         "label": "main",
         "title": "Meilisearch Desktop",
         "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 14,
+          "y": 18
+        },
         "width": 1200,
         "height": 800,
         "minWidth": 900,
@@ -20,15 +25,13 @@
         "center": true,
         "visible": false,
         "resizable": true,
-        "decorations": true
+        "decorations": true,
+        "transparent": true,
+        "acceptFirstMouse": true
       }
     ],
     "security": {
       "csp": "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost https: http:"
-    },
-    "trayIcon": {
-      "iconPath": "icons/icon.png",
-      "iconAsTemplate": true
     }
   },
   "bundle": {

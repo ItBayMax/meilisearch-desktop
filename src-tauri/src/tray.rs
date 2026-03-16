@@ -10,8 +10,10 @@ pub fn create_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     let menu = Menu::with_items(app, &[&open_item, &quit_item])?;
 
-    TrayIconBuilder::new()
+    TrayIconBuilder::with_id("main-tray")
+        .icon(app.default_window_icon().unwrap().clone())
         .menu(&menu)
+        .show_menu_on_left_click(false)
         .tooltip("Meilisearch Desktop")
         .on_menu_event(|app, event| match event.id.as_ref() {
             "open" => {
