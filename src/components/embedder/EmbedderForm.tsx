@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { EmbedderConfig, EmbedderSource } from "@/types";
 
@@ -159,6 +165,15 @@ export function EmbedderForm({
       {source === "openAi" && (
         <div className="space-y-3 border-l-2 border-primary/20 pl-4">
           <div className="space-y-1.5">
+            <Label className="text-sm">{t("embedder.fields.urlOptional")}</Label>
+            <Input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://api.openai.com/v1/embeddings"
+              className="text-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
             <Label className="text-sm">{t("embedder.fields.apiKey")}</Label>
             <Input
               type="password"
@@ -173,27 +188,38 @@ export function EmbedderForm({
           </div>
           <div className="space-y-1.5">
             <Label className="text-sm">{t("embedder.fields.model")}</Label>
-            <Select value={model} onValueChange={setModel}>
-              <SelectTrigger className="text-sm">
-                <SelectValue placeholder="Select model" />
-              </SelectTrigger>
-              <SelectContent>
+            <DropdownMenu>
+              <div className="relative">
+                <Input
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  placeholder="text-embedding-3-small"
+                  className="text-sm pr-8"
+                />
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded"
+                  >
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+              </div>
+              <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
                 {OPENAI_MODELS.map((m) => (
-                  <SelectItem key={m} value={m} className="text-sm">
+                  <DropdownMenuItem
+                    key={m}
+                    onClick={() => setModel(m)}
+                    className={cn("text-sm", model === m && "bg-accent")}
+                  >
                     {m}
-                  </SelectItem>
+                  </DropdownMenuItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-sm">{t("embedder.fields.urlOptional")}</Label>
-            <Input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://api.openai.com/v1/embeddings"
-              className="text-sm"
-            />
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <p className="text-xs text-muted-foreground">
+              {t("embedder.fields.modelHint")}
+            </p>
           </div>
         </div>
       )}

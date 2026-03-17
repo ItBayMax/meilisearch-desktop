@@ -180,10 +180,11 @@ jobs:
           }
           
           # Get signatures (will be empty if not signed)
-          WIN_SIG=$(get_signature "Meilisearch-Desktop_${VERSION}_x64-setup.nsis.zip")
-          MAC_INTEL_SIG=$(get_signature "Meilisearch-Desktop_x64.app.tar.gz")
-          MAC_ARM_SIG=$(get_signature "Meilisearch-Desktop_aarch64.app.tar.gz")
-          LINUX_SIG=$(get_signature "meilisearch-desktop_${VERSION}_amd64.AppImage.tar.gz")
+          # Note: Tauri uses "Meilisearch.Desktop" (with dot) as product name
+          WIN_SIG=$(get_signature "Meilisearch.Desktop_${VERSION}_x64-setup.nsis.zip")
+          MAC_INTEL_SIG=$(get_signature "Meilisearch.Desktop_x64.app.tar.gz")
+          MAC_ARM_SIG=$(get_signature "Meilisearch.Desktop_aarch64.app.tar.gz")
+          LINUX_SIG=$(get_signature "Meilisearch.Desktop_${VERSION}_amd64.AppImage.tar.gz")
           
           cat > latest.json <<EOF
           {
@@ -192,19 +193,19 @@ jobs:
             "pub_date": "${DATE}",
             "platforms": {
               "windows-x86_64": {
-                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch-Desktop_${VERSION}_x64-setup.nsis.zip",
+                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch.Desktop_${VERSION}_x64-setup.nsis.zip",
                 "signature": "${WIN_SIG}"
               },
               "darwin-x86_64": {
-                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch-Desktop_x64.app.tar.gz",
+                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch.Desktop_x64.app.tar.gz",
                 "signature": "${MAC_INTEL_SIG}"
               },
               "darwin-aarch64": {
-                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch-Desktop_aarch64.app.tar.gz",
+                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch.Desktop_aarch64.app.tar.gz",
                 "signature": "${MAC_ARM_SIG}"
               },
               "linux-x86_64": {
-                "url": "https://github.com/${REPO}/releases/download/${TAG}/meilisearch-desktop_${VERSION}_amd64.AppImage.tar.gz",
+                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch.Desktop_${VERSION}_amd64.AppImage.tar.gz",
                 "signature": "${LINUX_SIG}"
               }
             }
