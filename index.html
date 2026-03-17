@@ -5,8 +5,24 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Meilisearch Desktop</title>
+    <style>
+      /* Static drag layer for macOS - MUST be in index.html for WKWebView to register on initial load */
+      #macos-drag-layer {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 32px;
+        z-index: 9999;
+        -webkit-app-region: drag;
+        app-region: drag;
+        pointer-events: auto;
+      }
+    </style>
   </head>
   <body>
+    <!-- Static drag layer for macOS WKWebView - do not remove -->
+    <div id="macos-drag-layer" data-tauri-drag-region></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

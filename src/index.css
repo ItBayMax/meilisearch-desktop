@@ -60,13 +60,17 @@
   }
 }
 
-/* Tauri window drag region */
+/* Tauri window drag region - enhanced for macOS compatibility */
 [data-tauri-drag-region] {
   -webkit-app-region: drag;
+  app-region: drag;
+  pointer-events: auto;
 }
 
 .no-drag {
   -webkit-app-region: no-drag;
+  app-region: no-drag;
+  pointer-events: auto;
 }
 
 /* Scrollbar styling */
