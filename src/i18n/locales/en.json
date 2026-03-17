@@ -280,6 +280,7 @@
       "apiKey": "API Key",
       "apiKeyHint": "Leave empty to use environment variable OPENAI_API_KEY.",
       "model": "Model",
+      "modelHint": "Select a preset model or enter a custom model name.",
       "url": "URL",
       "urlOptional": "URL (optional, for proxy or custom endpoint)",
       "dimensions": "Dimensions",
