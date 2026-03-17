@@ -110,12 +110,73 @@ jobs:
           
           echo "Version updated to $VERSION"
 
+      - name: Check signing keys
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" ]; then
+            echo "✅ TAURI_SIGNING_PRIVATE_KEY is set"
+          else
+            echo "❌ TAURI_SIGNING_PRIVATE_KEY is NOT set"
+          fi
+          if [ -n "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" ]; then
+            echo "✅ TAURI_SIGNING_PRIVATE_KEY_PASSWORD is set"
+          else
+            echo "❌ TAURI_SIGNING_PRIVATE_KEY_PASSWORD is NOT set"
+          fi
+
+      - name: Prepare Tauri signing key
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" ]; then
+            echo "⚠️ TAURI_SIGNING_PRIVATE_KEY not set, skipping signing"
+            exit 0
+          fi
+          
+          RAW="${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
+          KEY_PATH="$RUNNER_TEMP/tauri_signing.key"
+          
+          # Case 1: Raw two-line text (starts with "untrusted comment:")
+          if echo "$RAW" | head -n1 | grep -q '^untrusted comment:'; then
+            printf '%s\n' "$RAW" > "$KEY_PATH"
+            echo "✅ Using raw two-line key format"
+          else
+            # Case 2: Base64 wrapped (decode to two lines)
+            if DECODED=$(printf '%s' "$RAW" | (base64 --decode 2>/dev/null || base64 -D 2>/dev/null)) \
+               && echo "$DECODED" | head -n1 | grep -q '^untrusted comment:'; then
+              printf '%s\n' "$DECODED" > "$KEY_PATH"
+              echo "✅ Decoded base64 wrapped key"
+            else
+              # Case 3: Single base64 line -> construct two-line file
+              if echo "$RAW" | grep -Eq '^[A-Za-z0-9+/=]+$'; then
+                ONE=$(printf '%s' "$RAW" | tr -d '\r\n')
+                printf '%s\n%s\n' "untrusted comment: tauri signing key" "$ONE" > "$KEY_PATH"
+                echo "✅ Using single-line base64 key"
+              else
+                echo "❌ Cannot recognize TAURI_SIGNING_PRIVATE_KEY format" >&2
+                exit 1
+              fi
+            fi
+          fi
+          
+          # Encode as base64 for environment variable
+          if command -v base64 >/dev/null 2>&1; then
+            KEY_B64=$(base64 < "$KEY_PATH" | tr -d '\r\n')
+          elif command -v openssl >/dev/null 2>&1; then
+            KEY_B64=$(openssl base64 -A -in "$KEY_PATH")
+          else
+            KEY_B64=$(KEY_PATH="$KEY_PATH" node -e "process.stdout.write(require('fs').readFileSync(process.env.KEY_PATH).toString('base64'))")
+          fi
+          
+          echo "TAURI_SIGNING_PRIVATE_KEY=$KEY_B64" >> "$GITHUB_ENV"
+          if [ -n "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" ]; then
+            echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" >> $GITHUB_ENV
+          fi
+          echo "✅ Tauri signing key prepared"
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Meilisearch Desktop ${{ github.ref_name }}'
@@ -149,83 +210,145 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  updater:
-    name: Generate Updater JSON
+  assemble-latest-json:
+    name: Assemble latest.json
     needs: build
     runs-on: ubuntu-latest
     if: always() && contains(needs.build.result, 'success')
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Wait for release assets
-        run: sleep 30
-
-      - name: Generate updater manifest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare GH CLI
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          REPO="$GITHUB_REPOSITORY"
-          TAG="$GITHUB_REF_NAME"
+          gh --version || (type -p curl >/dev/null && sudo apt-get update && sudo apt-get install -y gh || true)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          mkdir -p dl
+          gh release download "$TAG" --dir dl --repo "$GITHUB_REPOSITORY"
+          echo "Downloaded assets:"
+          ls -la dl || true
+
+      - name: Generate latest.json
+        env:
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          base_url="https://github.com/$REPO/releases/download/$TAG"
           
-          # Get release info and download signature files
-          echo "Fetching release info for ${TAG}..."
+          # Initialize empty platform mappings
+          mac_intel_url=""; mac_intel_sig=""
+          mac_arm_url=""; mac_arm_sig=""
+          win_url=""; win_sig=""
+          linux_url=""; linux_sig=""
           
-          # Function to get signature from release assets
-          get_signature() {
-            local asset_name="$1"
-            local sig_url="https://github.com/${REPO}/releases/download/${TAG}/${asset_name}.sig"
-            curl -sL "$sig_url" 2>/dev/null || echo ""
-          }
+          shopt -s nullglob
           
-          # Get signatures (will be empty if not signed)
-          # Note: Tauri uses "Meilisearch.Desktop" (with dot) as product name
-          WIN_SIG=$(get_signature "Meilisearch.Desktop_${VERSION}_x64-setup.nsis.zip")
-          MAC_INTEL_SIG=$(get_signature "Meilisearch.Desktop_x64.app.tar.gz")
-          MAC_ARM_SIG=$(get_signature "Meilisearch.Desktop_aarch64.app.tar.gz")
-          LINUX_SIG=$(get_signature "Meilisearch.Desktop_${VERSION}_amd64.AppImage.tar.gz")
+          # Iterate through all .sig files to find updater artifacts
+          for sig in dl/*.sig; do
+            base=${sig%.sig}
+            fname=$(basename "$base")
+            url="$base_url/$fname"
+            sig_content=$(cat "$sig")
+            
+            echo "Found signature for: $fname"
+            
+            case "$fname" in
+              # macOS: .app.tar.gz files
+              *x64*.app.tar.gz|*x86_64*.app.tar.gz|*intel*.app.tar.gz)
+                mac_intel_url="$url"; mac_intel_sig="$sig_content"
+                echo "  -> darwin-x86_64";;
+              *aarch64*.app.tar.gz|*arm64*.app.tar.gz|*silicon*.app.tar.gz)
+                mac_arm_url="$url"; mac_arm_sig="$sig_content"
+                echo "  -> darwin-aarch64";;
+              *.app.tar.gz)
+                # Universal or unspecified arch - use for both
+                if [ -z "$mac_intel_url" ]; then
+                  mac_intel_url="$url"; mac_intel_sig="$sig_content"
+                  echo "  -> darwin-x86_64 (universal)"
+                fi
+                if [ -z "$mac_arm_url" ]; then
+                  mac_arm_url="$url"; mac_arm_sig="$sig_content"
+                  echo "  -> darwin-aarch64 (universal)"
+                fi;;
+              # Windows: prefer .msi over .exe
+              *.msi)
+                win_url="$url"; win_sig="$sig_content"
+                echo "  -> windows-x86_64 (msi)";;
+              *.exe)
+                # Only use .exe if no .msi found
+                if [ -z "$win_url" ]; then
+                  win_url="$url"; win_sig="$sig_content"
+                  echo "  -> windows-x86_64 (exe)"
+                fi;;
+              # Linux: .AppImage files
+              *.AppImage)
+                linux_url="$url"; linux_sig="$sig_content"
+                echo "  -> linux-x86_64";;
+            esac
+          done
           
-          cat > latest.json <<EOF
+          # Build JSON with only existing platforms
+          tmp_json=$(mktemp)
           {
-            "version": "${VERSION}",
-            "notes": "Meilisearch Desktop ${TAG}",
-            "pub_date": "${DATE}",
-            "platforms": {
-              "windows-x86_64": {
-                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch.Desktop_${VERSION}_x64-setup.nsis.zip",
-                "signature": "${WIN_SIG}"
-              },
-              "darwin-x86_64": {
-                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch.Desktop_x64.app.tar.gz",
-                "signature": "${MAC_INTEL_SIG}"
-              },
-              "darwin-aarch64": {
-                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch.Desktop_aarch64.app.tar.gz",
-                "signature": "${MAC_ARM_SIG}"
-              },
-              "linux-x86_64": {
-                "url": "https://github.com/${REPO}/releases/download/${TAG}/Meilisearch.Desktop_${VERSION}_amd64.AppImage.tar.gz",
-                "signature": "${LINUX_SIG}"
-              }
-            }
-          }
-          EOF
+            echo '{'
+            echo "  \"version\": \"$VERSION\","
+            echo "  \"notes\": \"Meilisearch Desktop $TAG\","
+            echo "  \"pub_date\": \"$PUB_DATE\","
+            echo '  "platforms": {'
+            first=1
+            
+            if [ -n "$mac_intel_url" ] && [ -n "$mac_intel_sig" ]; then
+              [ $first -eq 0 ] && echo ','
+              echo "    \"darwin-x86_64\": {\"signature\": \"$mac_intel_sig\", \"url\": \"$mac_intel_url\"}"
+              first=0
+            fi
+            
+            if [ -n "$mac_arm_url" ] && [ -n "$mac_arm_sig" ]; then
+              [ $first -eq 0 ] && echo ','
+              echo "    \"darwin-aarch64\": {\"signature\": \"$mac_arm_sig\", \"url\": \"$mac_arm_url\"}"
+              first=0
+            fi
+            
+            if [ -n "$win_url" ] && [ -n "$win_sig" ]; then
+              [ $first -eq 0 ] && echo ','
+              echo "    \"windows-x86_64\": {\"signature\": \"$win_sig\", \"url\": \"$win_url\"}"
+              first=0
+            fi
+            
+            if [ -n "$linux_url" ] && [ -n "$linux_sig" ]; then
+              [ $first -eq 0 ] && echo ','
+              echo "    \"linux-x86_64\": {\"signature\": \"$linux_sig\", \"url\": \"$linux_url\"}"
+              first=0
+            fi
+            
+            echo '  }'
+            echo '}'
+          } > "$tmp_json"
           
           echo "Generated latest.json:"
-          cat latest.json
+          cat "$tmp_json"
+          mv "$tmp_json" latest.json
 
-      - name: Upload updater manifest to release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: latest.json
-          tag_name: ${{ github.ref_name }}
+      - name: Upload latest.json to release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          gh release upload "$GITHUB_REF_NAME" latest.json --clobber --repo "$GITHUB_REPOSITORY"
 
   update-release-notes:
     name: Update Release Notes
-    needs: updater
+    needs: assemble-latest-json
     runs-on: ubuntu-latest
     if: always() && contains(needs.build.result, 'success')
     steps:
